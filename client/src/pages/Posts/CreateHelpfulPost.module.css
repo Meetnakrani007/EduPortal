@@ -65,6 +65,28 @@
 .create-post-tag:hover { background: #dbeafe; border-color: #93c5fd; }
 .create-post-tag button { background: none; border: none; color: #1d4ed8; font-size: 16px; cursor: pointer; }
 
+.create-post-tag-add {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background 0.2s ease;
+  white-space: nowrap;
+}
+
+.create-post-tag-add:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.create-post-tag-add:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
 .create-post-dropzone { border: 2px dashed #bfdbfe; border-radius: 6px; padding: 16px; background: #f8fbff; color: #2563eb; transition: border-color 0.15s ease, background 0.15s ease; }
 .create-post-dropzone:hover { border-color: #60a5fa; background: #eef6ff; }
 .create-post-file-preview { margin-top: 6px; font-size: 14px; color: #2563eb; }

@@ -11,9 +11,7 @@ export const useTheme = () => {
 };
 
 export const ThemeProvider = ({ children }) => {
-  const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('theme') || 'light';
-  });
+  const [theme, setTheme] = useState('light');
   
   const [fontSize, setFontSize] = useState(() => {
     return localStorage.getItem('fontSize') || 'medium';
@@ -30,8 +28,8 @@ export const ThemeProvider = ({ children }) => {
   useEffect(() => {
     const root = document.documentElement;
     
-    // Apply theme
-    root.setAttribute('data-theme', highContrast ? 'high-contrast' : theme);
+    // Apply light theme only
+    root.setAttribute('data-theme', 'light');
     
     // Apply font size
     root.className = root.className.replace(/font-(small|medium|large)/, '');
@@ -45,20 +43,16 @@ export const ThemeProvider = ({ children }) => {
     }
     
     // Store preferences
-    localStorage.setItem('theme', theme);
+    localStorage.setItem('theme', 'light');
     localStorage.setItem('fontSize', fontSize);
     localStorage.setItem('dyslexiaFont', dyslexiaFont);
     localStorage.setItem('highContrast', highContrast);
   }, [theme, fontSize, dyslexiaFont, highContrast]);
 
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light');
-  };
+  const toggleTheme = undefined;
 
   const updatePreferences = (preferences) => {
-    if (preferences.darkMode !== undefined) {
-      setTheme(preferences.darkMode ? 'dark' : 'light');
-    }
+    // Ignore darkMode preference
     if (preferences.fontSize) {
       setFontSize(preferences.fontSize);
     }

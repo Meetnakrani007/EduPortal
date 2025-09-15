@@ -3,6 +3,8 @@ import api from "../../api";
 import { useAuth } from "../../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
+import './admin.css';
+import ConfirmModal from "../../components/ConfirmModal";
 
 const socket = io("http://localhost:8080");
 
@@ -11,14 +13,16 @@ const AdminDashboard = () => {
   const [summary, setSummary] = useState({});
   const [assignedTickets, setAssignedTickets] = useState([]);
   const [chats, setChats] = useState([]);
+  const [usersWithStats, setUsersWithStats] = useState([]);
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [deletingId, setDeletingId] = useState('');
+  const [confirmUserId, setConfirmUserId] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
     if (user?.role === 'admin') {
-      api
-        .get("/admin/summary")
-        .then((res) => setSummary(res.data))
-        .catch((err) => console.error(err));
+      api.get("/users/admin/summary").then((res) => setSummary(res.data)).catch(() => {});
+      api.get('/users/admin/users-with-stats').then(res => setUsersWithStats(res.data.users || [])).catch(() => setUsersWithStats([]));
     }
     if (user?.role === 'teacher') {
       // Fetch tickets assigned to this teacher
@@ -39,6 +43,19 @@ const AdminDashboard = () => {
         socket.emit('ticketStatusChanged', { ticketId, newStatus });
       })
       .catch(err => alert('Failed to update status'));
+  };
+
+  const deleteUser = async (userId) => {
+    setDeletingId(userId);
+    try {
+      await api.delete(`/users/${userId}`);
+      setUsersWithStats(prev => prev.filter(u => u.id !== userId));
+    } catch (e) {
+      alert(e?.response?.data?.message || 'Failed to delete user');
+    } finally {
+      setDeletingId('');
+      setConfirmUserId('');
+    }
   };
 
   if (user?.role === 'teacher') {
@@ -116,11 +133,93 @@ const AdminDashboard = () => {
 
   // Default admin dashboard
   return (
-    <div>
-      <h2>Admin Dashboard</h2>
-      <p>Total Users: {summary.totalUsers}</p>
-      <p>Total Tickets: {summary.totalTickets}</p>
-      <p>Total Posts: {summary.totalPosts}</p>
+    <div className="admin-wrap">
+      <div className="admin-header">
+        <h2>Admin Dashboard</h2>
+        <div className="kpis">
+          <div className="kpi">
+            <div className="kpi-label">Users</div>
+            <div className="kpi-value">{summary.totalUsers ?? 0}</div>
+          </div>
+          <div className="kpi">
+            <div className="kpi-label">Tickets</div>
+            <div className="kpi-value">{summary.totalTickets ?? 0}</div>
+          </div>
+          <div className="kpi">
+            <div className="kpi-label">Posts</div>
+            <div className="kpi-value">{summary.totalPosts ?? 0}</div>
+          </div>
+        </div>
+      </div>
+
+      <section className="card">
+        <div className="card-title">Users Overview</div>
+        <div className="filter-row">
+          <label htmlFor="role-filter" className="filter-label">Filter by role</label>
+          <select id="role-filter" className="filter-select" value={roleFilter} onChange={e => setRoleFilter(e.target.value)}>
+            <option value="all">All</option>
+            <option value="student">Student</option>
+            <option value="teacher">Teacher</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Created</th>
+                <th>Tickets
+                  <span className="th-sub">resolved / under review / open</span>
+                </th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {usersWithStats
+                .filter(u => roleFilter === 'all' ? true : (u.role === roleFilter))
+                .map(u => (
+                <tr key={u.id}>
+                  <td>{u.name}</td>
+                  <td>{u.email}</td>
+                  <td className="capitalize">{u.role}</td>
+                  <td>{new Date(u.createdAt).toLocaleDateString()}</td>
+                  <td>
+                    <span className="pill pill-green">{u.tickets.resolved}</span>
+                    <span className="pill pill-amber">{u.tickets.underReview}</span>
+                    <span className="pill pill-blue">{u.tickets.open}</span>
+                  </td>
+                  <td>
+                    <button
+                      className="btn-danger"
+                      onClick={() => setConfirmUserId(u.id)}
+                      disabled={deletingId === u.id || (user && (user.id === u.id || user._id === u.id))}
+                      title={user && (user.id === u.id || user._id === u.id) ? 'Cannot delete yourself' : 'Delete user'}
+                    >
+                      {deletingId === u.id ? 'Deleting...' : 'Delete'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {usersWithStats.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="muted">No users found.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <ConfirmModal
+        open={!!confirmUserId}
+        title="Delete User?"
+        message="This action cannot be undone."
+        confirmText={deletingId ? 'Deleting...' : 'Delete'}
+        onCancel={() => setConfirmUserId('')}
+        onConfirm={() => deleteUser(confirmUserId)}
+      />
     </div>
   );
 };

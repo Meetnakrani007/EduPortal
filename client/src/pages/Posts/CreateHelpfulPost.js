@@ -4,7 +4,18 @@ import { useAuth } from "../../contexts/AuthContext";
 import api from "../../api";
 import styles from "./CreateHelpfulPost.module.css";
 
-const TAG_SUGGESTIONS = ["#ExamTips", "#ProjectHelp", "#DoubtClear", "#Resource", "#FAQ"];
+const TAG_SUGGESTIONS = [
+  "#ExamTips", 
+  "#ProjectHelp", 
+  "#DoubtClear", 
+  "#Resource", 
+  "#FAQ",
+  "#StudyTips",
+  "#ExamHelp",
+  "#TechnicalGuide",
+  "#Administrative",
+  "#General"
+];
 
 export default function CreateHelpfulPost() {
   const { user, loading } = useAuth();
@@ -54,8 +65,10 @@ export default function CreateHelpfulPost() {
     if (selectedTicket) {
       const ticket = resolvedTickets.find(t => t._id === selectedTicket);
       if (ticket) {
-        setTitle(ticket.title || "");
-        setContent(ticket.description || "");
+        // Problem field gets the student's description (what they wrote as problem definition)
+        setTitle(ticket.description || "");
+        // Solution field starts blank for teacher to fill in
+        setContent("");
         setTags(ticket.tags ? ticket.tags.map(tag => tag.displayName || tag.name || tag) : []);
         setTicketAttachments(ticket.attachments || []);
       }
@@ -69,9 +82,16 @@ export default function CreateHelpfulPost() {
 
   const handleTagAdd = (e) => {
     e.preventDefault();
-    if (tagInput && !tags.includes(tagInput)) {
-      setTags([...tags, tagInput]);
+    if (tagInput.trim() && !tags.includes(tagInput.trim())) {
+      setTags([...tags, tagInput.trim()]);
       setTagInput("");
+    }
+  };
+
+  const handleTagInputKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleTagAdd(e);
     }
   };
 
@@ -166,6 +186,7 @@ export default function CreateHelpfulPost() {
           value={title}
           onChange={e => setTitle(e.target.value)}
           required
+          placeholder={selectedTicket ? "Problem automatically filled from ticket" : "Enter the problem description"}
           className={styles["create-post-input"]}
         />
         <label className={styles["create-post-label"]}>Solution<span className={styles["create-post-required"]}>*</span></label>
@@ -174,28 +195,74 @@ export default function CreateHelpfulPost() {
           onChange={e => setContent(e.target.value)}
           required
           rows={6}
+          placeholder="Write your solution here..."
           className={styles["create-post-textarea"]}
         />
         <label className={styles["create-post-label"]}>Tags</label>
         <div className={styles["create-post-tags"]}>
-          {tags.map(tag => (
-            <span key={tag} className={styles["create-post-tag"]}>
-              {tag} <button type="button" onClick={() => handleTagRemove(tag)}>×</button>
-            </span>
-          ))}
-          <form onSubmit={handleTagAdd} style={{ display: 'inline' }}>
+          {/* Selected Tags Display */}
+          <div style={{ marginBottom: '12px' }}>
+            {tags.map(tag => (
+              <span key={tag} className={styles["create-post-tag"]}>
+                {tag} <button type="button" onClick={() => handleTagRemove(tag)}>×</button>
+              </span>
+            ))}
+          </div>
+          
+          {/* Tag Input Section */}
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <input
               type="text"
               value={tagInput}
               onChange={e => setTagInput(e.target.value)}
-              placeholder="#Tag"
+              onKeyPress={handleTagInputKeyPress}
+              placeholder="Type tag name (e.g., #ExamHelp, #StudyTips)"
               list="tag-suggestions"
               className={styles["create-post-tag-input"]}
+              style={{ flex: 1 }}
             />
-            <datalist id="tag-suggestions">
-              {TAG_SUGGESTIONS.map(tag => <option key={tag} value={tag} />)}
-            </datalist>
-          </form>
+            <button 
+              type="button" 
+              onClick={handleTagAdd}
+              className={styles["create-post-tag-add"]}
+              disabled={!tagInput.trim()}
+            >
+              Add Tag
+            </button>
+          </div>
+          
+          {/* Quick Add Buttons */}
+          <div style={{ marginTop: '8px' }}>
+            <span style={{ fontSize: '12px', color: '#6b7280', marginRight: '8px' }}>Quick add:</span>
+            {TAG_SUGGESTIONS.map(suggestion => (
+              <button
+                key={suggestion}
+                type="button"
+                onClick={() => {
+                  if (!tags.includes(suggestion)) {
+                    setTags([...tags, suggestion]);
+                  }
+                }}
+                disabled={tags.includes(suggestion)}
+                style={{
+                  fontSize: '11px',
+                  padding: '4px 8px',
+                  margin: '2px',
+                  borderRadius: '12px',
+                  border: '1px solid #d1d5db',
+                  background: tags.includes(suggestion) ? '#e5e7eb' : '#f9fafb',
+                  color: tags.includes(suggestion) ? '#9ca3af' : '#374151',
+                  cursor: tags.includes(suggestion) ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+          
+          <datalist id="tag-suggestions">
+            {TAG_SUGGESTIONS.map(tag => <option key={tag} value={tag} />)}
+          </datalist>
         </div>
         <label className={styles["create-post-label"]}>Attachment</label>
         {/* Show ticket attachments if any */}

@@ -32,11 +32,17 @@ const TicketDetail = () => {
 
   const handleStatusChange = e => {
     const newStatus = e.target.value;
+    // Optimistically update UI immediately
+    setStatus(newStatus);
+    setTicket(prev => ({ ...(prev || {}), status: newStatus }));
     setSaving(true);
     api.put(`/tickets/${id}/status`, { status: newStatus })
-      .then(res => {
-        setStatus(newStatus);
-        setTicket(prev => ({ ...prev, status: newStatus }));
+      .catch(() => {
+        // Revert on error by refetching
+        api.get(`/tickets/${id}`).then(r => {
+          setStatus(r.data.status);
+          setTicket(r.data);
+        });
       })
       .finally(() => setSaving(false));
   };
@@ -44,7 +50,7 @@ const TicketDetail = () => {
   if (loading) return <div>Loading...</div>;
   if (!ticket) return <div>Ticket not found.</div>;
 
-  const statusObj = statusColors[ticket.status] || { bg: '#e2e3e5', color: '#383d41', label: ticket.status };
+  const statusObj = statusColors[status || ticket.status] || { bg: '#e2e3e5', color: '#383d41', label: status || ticket.status };
 
   return (
     <div style={{ maxWidth: 600, margin: '2rem auto', background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px rgba(30,136,229,0.07)', padding: 32 }}>
@@ -85,7 +91,13 @@ const TicketDetail = () => {
       {/* You can add more ticket details here if needed */}
       <div style={{ marginTop: 32 }}>
         <h3 style={{ marginBottom: 16 }}>Live Chat</h3>
-        <ChatRoom ticketId={ticket._id} />
+        <ChatRoom 
+          ticketId={ticket._id}
+          onStatusChange={(newStatus) => {
+            setStatus(newStatus);
+            setTicket(prev => ({ ...prev, status: newStatus }));
+          }}
+        />
       </div>
     </div>
   );

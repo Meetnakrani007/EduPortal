@@ -102,4 +102,72 @@ router.get('/', auth, authorize('admin'), async (req, res) => {
   }
 });
 
+// Admin summary (admin only)
+router.get('/admin/summary', auth, authorize('admin'), async (req, res) => {
+  try {
+    const Ticket = require('../models/Ticket');
+    const Post = require('../models/Post');
+    const totalUsers = await User.countDocuments();
+    const totalTickets = await Ticket.countDocuments();
+    const totalPosts = await Post.countDocuments();
+    res.json({ totalUsers, totalTickets, totalPosts });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Admin: users with ticket stats
+router.get('/admin/users-with-stats', auth, authorize('admin'), async (req, res) => {
+  try {
+    const Ticket = require('../models/Ticket');
+    const users = await User.find().select('name email role createdAt');
+    const userIds = users.map(u => u._id);
+    const agg = await Ticket.aggregate([
+      { $match: { student: { $in: userIds } } },
+      { $group: { _id: '$student',
+        total: { $sum: 1 },
+        resolved: { $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] } },
+        underReview: { $sum: { $cond: [{ $eq: ['$status', 'under review'] }, 1, 0] } },
+        open: { $sum: { $cond: [{ $eq: ['$status', 'open'] }, 1, 0] } },
+      }}
+    ]);
+    const statsMap = new Map(agg.map(a => [String(a._id), a]));
+    const data = users.map(u => {
+      const s = statsMap.get(String(u._id)) || { total: 0, resolved: 0, underReview: 0, open: 0 };
+      return {
+        id: u._id,
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        createdAt: u.createdAt,
+        tickets: s
+      };
+    });
+    res.json({ users: data });
+  } catch (error) {
+    console.error('admin users-with-stats error', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Admin: delete a user
+router.delete('/:id', auth, authorize('admin'), async (req, res) => {
+  try {
+    const userId = req.params.id;
+    if (String(req.user._id) === String(userId)) {
+      return res.status(400).json({ message: 'You cannot delete your own admin account.' });
+    }
+    const user = await User.findByIdAndDelete(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    // Optionally, you could soft-delete or anonymize related data here.
+    return res.json({ message: 'User deleted' });
+  } catch (error) {
+    console.error('delete user error', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 module.exports = router;

@@ -1,0 +1,19 @@
+.tickets-wrap { max-width: 1100px; margin: 2rem auto; background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(30,136,229,0.07); padding: 24px; }
+.tickets-title { margin: 0 0 16px 0; font-weight: 800; color: #0f172a; }
+.tickets-empty { color: #6b7280; text-align: center; margin: 40px 0; }
+.table-scroll { max-height: 64vh; overflow-y: auto; border-radius: 10px; border: 1px solid #eef2f7; }
+.tickets-table { width: 100%; border-collapse: collapse; background: #fff; }
+.tickets-table thead tr { background: #f3f6fa; }
+.tickets-table th, .tickets-table td { padding: 10px; border-bottom: 1px solid #eef2f7; text-align: left; }
+.tickets-table tr:hover td { background: #fafbff; }
+.cell-strong { font-weight: 600; }
+.link { color: #1976d2; text-decoration: none; }
+.btn-primary { background: #1e88e5; color: #fff; border: 1px solid #1976d2; border-radius: 8px; padding: 6px 16px; font-weight: 600; text-decoration: none; }
+.btn-primary:hover { background: #1976d2; }
+.ml8 { margin-left: 8px; }
+.pill { display: inline-block; padding: 4px 12px; border-radius: 8px; font-weight: 600; font-size: 14px; }
+.pill-green { background: #d4edda; color: #155724; }
+.pill-amber { background: #fff3cd; color: #92400e; }
+.pill-red { background: #f8d7da; color: #721c24; }
+.pill-gray { background: #e2e3e5; color: #383d41; }
+

@@ -30,10 +30,27 @@ router.get('/', async (req, res) => {
     
     if (category) query.category = category;
     if (search) {
+      // First, find tags that match the search term
+      const Tag = require('../models/Tag');
+      const matchingTags = await Tag.find({
+        $or: [
+          { name: { $regex: search, $options: 'i' } },
+          { displayName: { $regex: search, $options: 'i' } }
+        ]
+      }).select('_id');
+      
+      const matchingTagIds = matchingTags.map(tag => tag._id);
+      
       query.$or = [
         { title: { $regex: search, $options: 'i' } },
-        { content: { $regex: search, $options: 'i' } }
+        { content: { $regex: search, $options: 'i' } },
+        { category: { $regex: search, $options: 'i' } }
       ];
+      
+      // If there are matching tags, also search by tag IDs
+      if (matchingTagIds.length > 0) {
+        query.$or.push({ tags: { $in: matchingTagIds } });
+      }
     }
     const sortBy = sort === 'views' ? { viewCount: -1 } : { createdAt: -1 };
 
@@ -90,6 +107,7 @@ router.post('/', auth, authorize('teacher', 'admin'), upload.any(), async (req, 
   try {
     let { title, content, summary } = req.body;
     let category = req.body.category || 'General';
+    const fromTicketId = req.body.fromTicketId;
     
     // Normalize attachments from any field name
     const uploadedFiles = Array.isArray(req.files) ? req.files : [];
@@ -102,6 +120,7 @@ router.post('/', auth, authorize('teacher', 'admin'), upload.any(), async (req, 
 
     // Normalize tags input
     let incomingTags = [];
+    
     if (Array.isArray(req.body['tags[]'])) {
       incomingTags = req.body['tags[]'];
     } else if (typeof req.body.tags === 'string') {
@@ -127,7 +146,7 @@ router.post('/', auth, authorize('teacher', 'admin'), upload.any(), async (req, 
       tagIds.push(tagDoc._id);
     }
 
-    const post = new Post({
+    const postData = {
       title,
       content,
       category,
@@ -135,7 +154,41 @@ router.post('/', auth, authorize('teacher', 'admin'), upload.any(), async (req, 
       tags: tagIds,
       attachments,
       summary
-    });
+    };
+
+    // If creating from a resolved ticket, link it to enable transcript download
+    if (fromTicketId) {
+      const Ticket = require('../models/Ticket');
+      const ticket = await Ticket.findById(fromTicketId)
+        .populate('assignedTo', 'id _id name')
+        .populate('student', 'id _id name');
+
+      if (!ticket) {
+        return res.status(404).json({ message: 'Ticket not found' });
+      }
+      if (ticket.status !== 'resolved') {
+        return res.status(400).json({ message: 'Only resolved tickets can be published as transcripts' });
+      }
+      // Teacher must be the assigned teacher unless admin
+      const requesterId = req.user._id.toString();
+      if (req.user.role === 'teacher') {
+        const assignedId = ticket.assignedTo && (ticket.assignedTo.id || ticket.assignedTo._id).toString();
+        if (!assignedId || assignedId !== requesterId) {
+          return res.status(403).json({ message: 'Not authorized to publish this ticket' });
+        }
+      }
+      postData.ticketId = ticket._id;
+      // If no explicit title, default to ticket-based title
+      if (!postData.title) {
+        postData.title = `Transcript: ${ticket.title || ticket.category || 'Ticket'}`;
+      }
+      // If no content provided, provide a minimal placeholder so post is valid
+      if (!postData.content) {
+        postData.content = `Transcript for ticket ${ticket._id}`;
+      }
+    }
+
+    const post = new Post(postData);
 
     await post.save();
     await post.populate('author', 'name email role');
@@ -244,6 +297,7 @@ router.delete('/:id', auth, authorize('teacher', 'admin'), async (req, res) => {
       console.log('Delete: not owner', { postAuthor: post.author.toString(), requesterId });
       return res.status(403).json({ message: 'Not authorized to delete this post' });
     }
+    // Admin can delete any post
     await Post.findByIdAndDelete(postId);
     return res.json({ message: 'Post deleted' });
   } catch (error) {

@@ -202,6 +202,16 @@ router.put('/:id/status', auth, authorize('teacher', 'admin'), async (req, res) 
       return res.status(404).json({ message: 'Ticket not found' });
     }
 
+    // Emit live status update to the ticket room so all connected clients update immediately
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        io.to(String(ticket._id)).emit('ticketStatusChanged', { ticketId: String(ticket._id), newStatus: ticket.status });
+      }
+    } catch (e) {
+      // noop
+    }
+
     res.json(ticket);
   } catch (error) {
     console.error(error);
@@ -468,3 +478,26 @@ router.put('/:id/publish-helpful-post', auth, authorize('teacher', 'admin'), asy
 });
 
 module.exports = router;
+// Delete ticket (owner student, assigned teacher, or admin)
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    const ticket = await Ticket.findById(req.params.id).populate('student', '_id').populate('assignedTo', '_id');
+    if (!ticket) return res.status(404).json({ message: 'Ticket not found' });
+    const requesterId = String(req.user._id);
+    const isOwner = String(ticket.student?._id || '') === requesterId;
+    const isAssignedTeacher = String(ticket.assignedTo?._id || '') === requesterId;
+    const isAdmin = req.user.role === 'admin';
+    if (!(isOwner || isAssignedTeacher || isAdmin)) {
+      return res.status(403).json({ message: 'Not authorized to delete this ticket' });
+    }
+    await Ticket.findByIdAndDelete(ticket._id);
+    try {
+      const io = req.app.get('io');
+      if (io) io.to(String(ticket._id)).emit('ticketDeleted', { ticketId: String(ticket._id) });
+    } catch (e) {}
+    res.json({ message: 'Ticket deleted' });
+  } catch (error) {
+    console.error('delete ticket error', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});

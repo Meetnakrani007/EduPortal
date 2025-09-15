@@ -196,10 +196,26 @@ router.post('/by-ticket/:ticketId', auth, upload.array('attachments', 3), async 
     const newMsg = chat.messages[chat.messages.length - 1];
     newMsg.chat = chat._id;
     res.json(newMsg);
-    // If student sends a message and ticket is open, set status to 'under review'
-    if (req.user.role === 'student' && ticket.status === 'open') {
-      ticket.status = 'under review';
-      await ticket.save();
+    // Auto-update status based on sender role
+    if (req.user.role === 'student') {
+      if (ticket.status === 'open') {
+        ticket.status = 'under review';
+        await ticket.save();
+      }
+    } else if (req.user.role === 'teacher') {
+      if (ticket.status !== 'open') {
+        ticket.status = 'open';
+        await ticket.save();
+      }
+    }
+    // Emit live status change via socket.io (message broadcasting is already handled by client -> server socket event)
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        io.to(String(ticket._id)).emit('ticketStatusChanged', { ticketId: String(ticket._id), newStatus: ticket.status });
+      }
+    } catch (e) {
+      // no-op
     }
   } catch (error) {
     console.error(error);

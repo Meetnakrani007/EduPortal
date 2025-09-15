@@ -20,7 +20,7 @@ const statusColors = {
 
 const socket = io("http://localhost:8080"); // Adjust if needed
 
-const ChatRoom = ({ ticketId }) => {
+const ChatRoom = ({ ticketId, onStatusChange }) => {
   const params = useParams();
   const teacherId = params.teacherId;
   const { user } = useAuth();
@@ -68,7 +68,14 @@ const ChatRoom = ({ ticketId }) => {
       if (typingUser && typingUser._id !== user._id) setTypingUser(null);
     });
     socket.on('newMessage', (msg) => {
-      setMessages(prev => [...prev, msg]);
+      setMessages(prev => {
+        // Prevent duplicates by checking last id and content
+        const last = prev[prev.length - 1];
+        if (last && (last._id && msg._id) && String(last._id) === String(msg._id)) {
+          return prev;
+        }
+        return [...prev, msg];
+      });
       setTypingUser(null);
       // Mark as delivered for the sender
       if (msg._id && msg.sender && msg.sender._id !== user._id) {
@@ -82,8 +89,9 @@ const ChatRoom = ({ ticketId }) => {
       setSeenMap(prev => ({ ...prev, [messageId]: seenUser }));
     });
     socket.on('ticketStatusChanged', ({ ticketId: changedId, newStatus }) => {
-      if (changedId === ticketId && ticket) {
-        setTicket(prev => ({ ...prev, status: newStatus }));
+      if (String(changedId) === String(ticketId)) {
+        setTicket(prev => ({ ...(prev || {}), status: newStatus }));
+        if (typeof onStatusChange === 'function') onStatusChange(newStatus);
       }
     });
     return () => {
@@ -130,15 +138,24 @@ const ChatRoom = ({ ticketId }) => {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
       .then((res) => {
-        setMessages([...messages, res.data]);
+        setMessages(prev => {
+          const last = prev[prev.length - 1];
+          if (last && res.data && last._id && res.data._id && String(last._id) === String(res.data._id)) {
+            return prev;
+          }
+          return [...prev, res.data];
+        });
         setText("");
         setFile(null);
         setError("");
         socket.emit('newMessage', { ...res.data, roomId: ticketId });
-        socket.emit('stopTyping', { roomId: ticketId, user });
-        if (user?.role === 'student') {
-          setTimeout(() => window.location.reload(), 200);
+        // If teacher sent a message, optimistically switch status to open immediately
+        if (user?.role === 'teacher') {
+          setTicket(prev => ({ ...(prev || {}), status: 'open' }));
+          if (typeof onStatusChange === 'function') onStatusChange('open');
         }
+        socket.emit('stopTyping', { roomId: ticketId, user });
+        // no full-page reloads
       })
       .catch((err) => {
         let msg = "Failed to send message.";

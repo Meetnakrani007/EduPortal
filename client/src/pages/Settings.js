@@ -15,12 +15,7 @@ const defaultProfilePic =
 
 const Settings = () => {
   const { user, logout, updateUser } = useAuth();
-  const {
-    theme,
-    fontSize,
-    toggleTheme,
-    setFontSize,
-  } = useTheme();
+  const { fontSize, setFontSize } = useTheme();
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
@@ -62,7 +57,6 @@ const Settings = () => {
     setError("");
     try {
       const res = await api.put("/users/preferences", {
-        darkMode: theme === "dark",
         fontSize,
       });
       updateUser({ preferences: res.data.user.preferences });
