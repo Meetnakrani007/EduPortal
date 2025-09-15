@@ -3,21 +3,21 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const path = require("path");
 require("dotenv").config();
-const http = require('http');
-const { Server } = require('socket.io');
-const User = require('./models/User');
+const http = require("http");
+const { Server } = require("socket.io");
+const User = require("./models/User");
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: '*',
-    methods: ['GET', 'POST']
-  }
+    origin: "*",
+    methods: ["GET", "POST"],
+  },
 });
 
 // Make io available to routes
-app.set('io', io);
+app.set("io", io);
 
 // Middleware
 app.use(cors());
@@ -55,66 +55,69 @@ mongoose
   .then(async () => {
     console.log("MongoDB connected");
     // Seed default admin in development if configured
-    const adminEmail = process.env.ADMIN_EMAIL || 'admin@example.com';
-    const adminPassword = process.env.ADMIN_PASSWORD || 'Admin@123';
+    const adminEmail = process.env.ADMIN_EMAIL || "admin@example.com";
+    const adminPassword = process.env.ADMIN_PASSWORD || "Admin@123";
     try {
       let admin = await User.findOne({ email: adminEmail });
       if (!admin) {
         admin = new User({
-          name: 'Admin User',
+          name: "Admin User",
           email: adminEmail,
           password: adminPassword,
-          role: 'admin',
-          department: 'IT'
+          role: "admin",
+          department: "IT",
         });
         await admin.save();
-        console.log('Seeded admin user:', adminEmail);
+        console.log("Seeded admin user:", adminEmail);
       } else {
         let changed = false;
-        if (admin.role !== 'admin') { admin.role = 'admin'; changed = true; }
+        if (admin.role !== "admin") {
+          admin.role = "admin";
+          changed = true;
+        }
         // Ensure known password so you can log in
         admin.password = adminPassword; // will be hashed by pre-save hook
         changed = true;
         if (changed) {
           await admin.save();
-          console.log('Updated admin user and password for:', adminEmail);
+          console.log("Updated admin user and password for:", adminEmail);
         }
       }
     } catch (e) {
-      console.error('Admin seeding error:', e.message);
+      console.error("Admin seeding error:", e.message);
     }
   })
   .catch((err) => console.log(err));
 
 // Socket.io events
-io.on('connection', (socket) => {
-  console.log('A user connected:', socket.id);
+io.on("connection", (socket) => {
+  console.log("A user connected:", socket.id);
 
-  socket.on('joinRoom', (roomId) => {
+  socket.on("joinRoom", (roomId) => {
     socket.join(roomId);
   });
 
-  socket.on('typing', ({ roomId, user }) => {
-    socket.to(roomId).emit('typing', { user });
+  socket.on("typing", ({ roomId, user }) => {
+    socket.to(roomId).emit("typing", { user });
   });
 
-  socket.on('stopTyping', ({ roomId, user }) => {
-    socket.to(roomId).emit('stopTyping', { user });
+  socket.on("stopTyping", ({ roomId, user }) => {
+    socket.to(roomId).emit("stopTyping", { user });
   });
 
-  socket.on('newMessage', (data) => {
+  socket.on("newMessage", (data) => {
     // Broadcast new message to room
-    socket.to(data.roomId).emit('newMessage', data);
+    socket.to(data.roomId).emit("newMessage", data);
   });
 
-  socket.on('messageSeen', ({ roomId, messageId, user }) => {
-    socket.to(roomId).emit('messageSeen', { messageId, user });
+  socket.on("messageSeen", ({ roomId, messageId, user }) => {
+    socket.to(roomId).emit("messageSeen", { messageId, user });
   });
 
-  socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
+  socket.on("disconnect", () => {
+    console.log("User disconnected:", socket.id);
   });
 });
 
-const PORT = process.env.PORT;
+const PORT = process.env.PORT || 8080;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
