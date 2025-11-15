@@ -121,7 +121,7 @@ const Register = () => {
               Create Account
             </h1>
             <p className="card-subtitle">
-              Join the EduSupport Portal community
+              Join the CharusatStudentCare community
             </p>
           </div>
 

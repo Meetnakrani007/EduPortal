@@ -28,7 +28,7 @@ const Navbar = () => {
       <div className="navbar-container">
         <Link to="/" className="navbar-brand" onClick={closeMenu}>
           <span className="brand-icon">🎓</span>
-          EduSupport Portal
+          CharusatStudentCare
         </Link>
 
         <div className={`navbar-menu ${isMenuOpen ? "active" : ""}`}>

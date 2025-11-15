@@ -110,7 +110,7 @@ const Home = () => {
             marginBottom: '20px',
             lineHeight: '1.2'
           }}>
-            Welcome to EduSupport Portal
+            Welcome to CharusatStudentCare
           </h1>
           <p style={{ 
             fontSize: '20px', 
@@ -577,7 +577,7 @@ const Home = () => {
             maxWidth: '500px',
             margin: '0 auto 40px'
           }}>
-            Join thousands of students and faculty already using EduSupport Portal to enhance their academic experience.
+            Join thousands of students and faculty already using CharusatStudentCare to enhance their academic experience.
           </p>
           
           {!isAuthenticated && (

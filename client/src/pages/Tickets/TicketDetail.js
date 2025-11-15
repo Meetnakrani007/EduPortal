@@ -88,7 +88,7 @@ const TicketDetail = () => {
           <b>Assigned To:</b> {ticket.assignedTo?.name} ({ticket.assignedTo?.email})
         </div>
       )}
-      {/* You can add more ticket details here if needed */}
+      {}
       <div style={{ marginTop: 32 }}>
         <h3 style={{ marginBottom: 16 }}>Live Chat</h3>
         <ChatRoom 

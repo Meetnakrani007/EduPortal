@@ -100,7 +100,7 @@ const Login = () => {
               Welcome Back
             </h1>
             <p className="card-subtitle">
-              Sign in to your EduSupport Portal account
+              Sign in to your CharusatStudentCare account
             </p>
           </div>
 
